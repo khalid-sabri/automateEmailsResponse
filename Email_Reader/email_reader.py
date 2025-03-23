@@ -19,7 +19,7 @@ class EmailReader:
             email_user (str): Email username.
             email_pass (str): Email password.
         """
-        self.imap_url = imap_url
+        self.imap_url = 'imap.mail.yahoo.com'
         self.email_user = email_user
         self.email_pass = email_pass
         self.mail = None
@@ -30,7 +30,7 @@ class EmailReader:
         Connect to the IMAP server.
         """
         try:
-            self.mail = imaplib.IMAP4_SSL(self.imap_url)
+            self.mail = imaplib.IMAP4_SSL(self.imap_url,port=993)
         except imaplib.IMAP4.error as e:
             logging.error(f"Failed to connect to IMAP server: {e}")
             raise ConnectionError(f"Failed to connect to IMAP server: {e}")
@@ -51,7 +51,7 @@ class EmailReader:
         """
         try:
             self.mail.select('inbox')
-            status, messages = self.mail.search(None, '(UNSEEN)')
+            status, messages = self.mail.search(None, 'ALL')
             if status == 'OK':
                 for num in messages[0].split():
                     status, data = self.mail.fetch(num, '(RFC822)')

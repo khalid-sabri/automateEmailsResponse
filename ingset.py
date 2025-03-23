@@ -5,7 +5,8 @@ from utils.loaders import DocumentLoader
 from utils.text_processing import TextProcessor
 from utils.vector_db import VectorDatabase
 from config import DATA_PATH, DB_PATH, EMBED_MODEL_NAME
-from langchain_community.embeddings import HuggingFaceEmbeddings
+#from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from utils.logging_config import setup_logging
 import os
 
