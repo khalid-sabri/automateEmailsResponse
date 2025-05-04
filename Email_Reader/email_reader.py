@@ -4,13 +4,17 @@ import pandas as pd
 from email.header import decode_header
 import smtplib
 import logging
+import string
+from config import *
+import time
+
 
 class EmailReader:
     """
     Class to read and process emails using IMAP.
     """
 
-    def __init__(self, imap_url, email_user, email_pass):
+    def __init__(self, imap_url, Smtp_url, port_num, email_user, email_pass):
         """
         Initialize the EmailReader object.
 
@@ -19,7 +23,9 @@ class EmailReader:
             email_user (str): Email username.
             email_pass (str): Email password.
         """
-        self.imap_url = 'imap.mail.yahoo.com'
+        self.imap_url = imap_url
+        self.Smtp_url = Smtp_url
+        self.port = port_num
         self.email_user = email_user
         self.email_pass = email_pass
         self.mail = None
@@ -30,7 +36,7 @@ class EmailReader:
         Connect to the IMAP server.
         """
         try:
-            self.mail = imaplib.IMAP4_SSL(self.imap_url,port=993)
+            self.mail = imaplib.IMAP4_SSL(self.imap_url,port=self.port)
         except imaplib.IMAP4.error as e:
             logging.error(f"Failed to connect to IMAP server: {e}")
             raise ConnectionError(f"Failed to connect to IMAP server: {e}")
@@ -77,10 +83,28 @@ class EmailReader:
                 subject = subject.decode()
             from_ = msg.get('from')
             body = self.get_email_body(msg)
+            body = self.extractLatestMsg(body)
+            #body = ReadLastEmail.extract_last_reply(msg)
             self.df = self.df._append({'Email ID': email_id.decode(), 'Message ID': message_id, 'From': from_, 'Subject': subject, 'Body': body}, ignore_index=True)
         except Exception as e:
             logging.error(f"Error processing email: {e}")
             raise Exception(f"Error processing email: {e}")
+
+    def extractLatestMsg(self,body):
+        Inbody =  (
+        body
+        .lower()
+        .translate(str.maketrans('', '', string.punctuation)).split() 
+        )
+        foundStr = body;
+        for  r in range (len(Inbody)-1):
+            if Inbody[r]=="hi" or Inbody[r]=="hello":
+                indices = [i for i, item in enumerate(Inbody[r:]) if item == "regards" or item == "thanks"]
+                if len (indices) !=0:
+                    foundStr = ' '.join(Inbody[r:r+indices[0]])
+                    break
+        return foundStr       
+
 
     def get_email_body(self, msg):
         """
@@ -109,6 +133,7 @@ class EmailReader:
             logging.error(f"Error getting email body: {e}")
         return body
 
+
     def save_emails_to_excel(self, filename):
         """
         Save emails to an Excel file.
@@ -133,7 +158,7 @@ class EmailReader:
             logging.error(f"Error closing connection: {e}")
             print(f"Error closing connection: {e}")
 
-    def reply_to_email(self, msg_id, reply_body):
+    def reply_to_email(self, msg_id, reply_body, port):
         """
         Reply to an email.
 
@@ -146,6 +171,8 @@ class EmailReader:
         """
         try:
             self.mail.select('inbox')
+            
+            msg_id = msg_id.strip('"').strip()
             result, data = self.mail.search(None, f'(HEADER Message-ID "{msg_id}")')
             if result == 'OK':
                 email_ids = data[0].split()
@@ -155,14 +182,14 @@ class EmailReader:
                 if result == 'OK':
                     raw_email = data[0][1]
                     email_message = email.message_from_bytes(raw_email)
-
+                    result = self.mail.append('Drafts', '', imaplib.Time2Internaldate(time.time()), email_message.as_bytes())
                     reply = email.message.EmailMessage()
                     reply['Subject'] = 'Re: ' + email_message['Subject']
                     reply['To'] = email_message['Reply-To'] or email_message['From']
                     reply['From'] = self.email_user
                     reply.set_content(reply_body)
 
-                    with smtplib.SMTP('smtp-mail.outlook.com', 587) as smtp:
+                    with smtplib.SMTP(self.Smtp_url, port) as smtp:
                         smtp.ehlo()
                         smtp.starttls()
                         smtp.ehlo()
@@ -173,6 +200,48 @@ class EmailReader:
                     return "Failed to fetch the email."
             else:
                 return "Email not found."
+        except Exception as e:
+            logging.error(f"Error in sending email: {e}")
+            raise Exception(f"Error in sending email: {e}")
+
+    def move_to_draft(self, msg_id, reply_body):
+        try:
+            self.mail.select('inbox')
+            
+            msg_id = msg_id.strip('"').strip()
+            result, data = self.mail.search(None, f'(HEADER Message-ID "{msg_id}")')
+            if result == 'OK':
+                email_ids = data[0].split()
+                if len(email_ids) !=0:    #avoid error from moving same email again
+                    latest_email_id = email_ids[-1]
+
+                    result = self.mail.copy(latest_email_id, 'Drafts')  # Adjust folder name if needed
+                    if result[0] == 'OK':
+                    # Mark the original message for deletion
+                        self.mail.store(latest_email_id, '+FLAGS', '\\Deleted')
+
+
+                '''
+                result, data = self.mail.fetch(latest_email_id, '(RFC822)')
+
+            status, folders = self.mail.list()
+            if status == 'OK':
+                for folder in folders:
+                    print(folder.decode())
+
+                if result == 'OK':
+                    raw_email = data[0][1]
+                    email_message = email.message_from_bytes(raw_email)
+                    result = self.mail.append('\Spam', '', imaplib.Time2Internaldate(time.time()), email_message.as_bytes())
+                    if result =='OK':
+                        return "Moved to Drafts successfully."
+                    else: 
+                        return "Failed to move to Drafts."
+                else:
+                    return "Failed to Moved to Drafts "
+            else:
+                return "Email not found."
+            '''
         except Exception as e:
             logging.error(f"Error in sending email: {e}")
             raise Exception(f"Error in sending email: {e}")
