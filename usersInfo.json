@@ -1,0 +1,18 @@
+{
+	"moonlight698": {
+		"Imap": "imap.mail.yahoo.com",
+		"Smtp": "smtp.mail.yahoo.com",
+		"PortIn": 993,
+		"PortOut":587
+									},
+
+	
+		"rachel": {
+			"Imap": "imap.europe.secureserver.net",
+			"Smtp": "smtpout.europe.secureserver.net",
+			"PortIn": 993,
+			"PortOut": 587
+							}
+
+	
+}
