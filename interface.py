@@ -2,7 +2,22 @@ import gradio as gr
 from Email_Reader.email_response import EmailProcessor
 import logging
 from utils.logging_config import setup_logging
+import json
 
+
+get_local_storage = """
+    function() {
+      globalThis.setStorage = (key, value)=>{
+        localStorage.setItem(key, JSON.stringify(value))
+      }
+       globalThis.getStorage = (key, value)=>{
+        return JSON.parse(localStorage.getItem(key))
+      }
+       const user_input =  getStorage('user_input')
+       const pass_input =  getStorage('pass_input')
+       return [user_input, pass_input];
+      }
+    """
 
 setup_logging()
 
@@ -22,9 +37,23 @@ def create_interface(email_processor):
             gr.Markdown("<center> <h1 style='font-size: 24px; font-weight:bold;'>Email Processing Interface</h1> </center>")
             with gr.Row():
                 user_input = gr.Textbox(label="Email User", placeholder="Enter Email User here")
+                user_input.change(None, user_input, None, js="(v)=>{ setStorage('user_input',v) }")
+
                 pass_input = gr.Textbox(label="Email Password", placeholder="Enter Email Password here", type="password")
+                pass_input.change(None, pass_input, None, js="(v)=>{ setStorage('pass_input',v) }")
                 fetch_button = gr.Button("Fetch Emails")
                 fetch_output = gr.Label()
+
+            #with open('usersInfo.json') as userInfo_file:                
+            #    jasonUsersFile = json.load(userInfo_file)
+                #client = get_name(user_input)
+                #fetch_button.click(lambda user: get_name(user), inputs=[user_input], outputs=None)
+                #client = get_name(user_input.value)  # Ensure client gets a value
+                # Your logic here
+                #if client != "":
+                #    Imap = gr.State(jasonUsersFile[client]["Imap"])
+                #    Smtp = gr.State(jasonUsersFile[client]["Smtp"])
+
             fetch_button.click(email_processor.fetch_and_save_emails, inputs=[user_input, pass_input], outputs=fetch_output)
 
             with gr.Row():
@@ -40,6 +69,7 @@ def create_interface(email_processor):
                     Sentiment_score = gr.Textbox(label="Sentiment Score", placeholder="Sentiment Score", lines=3, max_lines=3)
                     reply_body_field = gr.Textbox(label="Reply Body", lines=20, max_lines=20, interactive=True, placeholder="Type your reply here", elem_classes="feedback")  # Set the height as desired
                     reply_button = gr.Button("Reply")
+                    save_as_draft =gr.Button("Save as draft")
 
             with gr.Row():
                 prev_button = gr.Button("Previous")
@@ -54,8 +84,17 @@ def create_interface(email_processor):
                                inputs=[user_input, pass_input, email_index, reply_body_field], 
                                outputs=[response_label, from_field, subject_field, body_field, email_index, Sentiment, Sentiment_score, reply_body_field])
 
+            
+            save_as_draft.click(email_processor.save_in_draft, 
+                               inputs=[user_input, pass_input, email_index, reply_body_field],  outputs=[reply_body_field])
+            
             response_label.change(email_processor.show_popup, inputs=[response_label])
-
+            app.load(
+            None,
+            inputs=None,
+            outputs=[user_input, pass_input],
+            js=get_local_storage,
+        )
         return app
     except Exception as e:
         logging.error(f"Error creating interface: {e}")
@@ -65,7 +104,7 @@ if __name__ == "__main__":
     try:
         email_processor = EmailProcessor()
         app = create_interface(email_processor)
-        app.launch()
+        app.launch(share=True)
     except Exception as e:
         logging.error(f"Error launching application: {e}")
         raise
