@@ -3,18 +3,18 @@ import gradio as gr
 import pandas as pd
 from .email_reader import EmailReader
 #from langchain.vectorstores import Chroma
-from langchain_community.vectorstores import Chroma
-#from langchain.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
-#from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import  RunnablePassthrough
+#from langchain_community.vectorstores import Chroma
+#  old   from langchain.vectorstores import Chroma
+#from langchain_community.embeddings import HuggingFaceEmbeddings
+#old    from langchain_huggingface import HuggingFaceEmbeddings
+#from langchain_core.output_parsers import StrOutputParser
+#from langchain_core.prompts import ChatPromptTemplate
+#from langchain_core.runnables import  RunnablePassthrough
 import datetime
 import os
-from langchain_community.chat_models import ChatOllama
+#from langchain_community.chat_models import ChatOllama
 from config import *
-from transformers import pipeline
+#from transformers import pipeline
 import logging
 import re
 from openai import OpenAI
@@ -30,10 +30,10 @@ class EmailResponder:
     def __init__(self):
         """Initialize the EmailResponder object."""
         try:
-            self.classifier = pipeline("zero-shot-classification", model=ZERO_SHOT_MODEL)
+            #self.classifier = pipeline("zero-shot-classification", model=ZERO_SHOT_MODEL)
             self.text_labels = ['Positive', 'Negative', 'Neutral']
             self.template = template
-            self.embed_model = HuggingFaceEmbeddings(model_name=EMBED_MODEL_NAME)            
+            #self.embed_model = HuggingFaceEmbeddings(model_name=EMBED_MODEL_NAME)            
             
             #model_name = "sentence-transformers/all-mpnet-base-v2"
             #model_kwargs = {'device': 'cpu'}
@@ -44,18 +44,17 @@ class EmailResponder:
 
 
             self.DB_PATH = DB_PATH
-            self.vectorstore = Chroma(persist_directory=self.DB_PATH, embedding_function=self.embed_model)
-            self.retriever = self.vectorstore.as_retriever()
-            self.prompt = ChatPromptTemplate.from_template(self.template)
+            #self.vectorstore = Chroma(persist_directory=self.DB_PATH, embedding_function=self.embed_model)
+            #self.retriever = self.vectorstore.as_retriever()
+            #self.prompt = ChatPromptTemplate.from_template(self.template)
             self.ollama_llm = OLLAMA_MODEL
-            self.model_local = ChatOllama(model=self.ollama_llm)
-            self.chain = (
-                {"context": self.retriever, "question": RunnablePassthrough()}
-                | self.prompt
-
-                | self.model_local
-                | StrOutputParser()
-            )
+            #self.model_local = ChatOllama(model=self.ollama_llm)
+            #self.chain = (
+            #    {"context": self.retriever, "question": RunnablePassthrough()}
+            #    | self.prompt
+            #    | self.model_local
+             #   | StrOutputParser()
+            #)
             with open('emailCategories.json') as user_file:
                 self.jasonFile = json.load(user_file)
 
@@ -81,7 +80,9 @@ class EmailResponder:
             # Assuming you want to analyze the body for sentiment
             body = self.extractLatestMsg(body)
             if  body:
-                result = self.classifier(body, self.text_labels, multi_label=False)
+                #result = self.classifier(body, self.text_labels, multi_label=False)
+                result = {'labels': 0}
+                result = {'scores': 0}
                 sentiment_label = result['labels'][0]
                 sentiment_score = result['scores'][0]
                 today = datetime.date.today() 

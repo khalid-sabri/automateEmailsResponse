@@ -468,6 +468,36 @@ def get_name(name):
 
 
 
+import requests
+import json
+
+def read_list_of_lists_from_url(url):
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an error for bad responses
+    data = json.loads(response.text)
+    tmp= [] 
+
+    for inner_list in len(data):
+        x = inner_list[0]
+        y = inner_list[2]
+       tmp[x,y] =inner_list[1]
+
+    for i in tmp:
+        for j in i:
+            print (j)
+       
+        
+        print(inner_list)
+
+    return data
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     '''
     #myui()
