@@ -1,0 +1,14 @@
+{
+  "Chat1": "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",
+  "Chat2": "sk-8e4a3a9541164170a15036bea038c805",
+  "categories": [
+    {
+      "cat1": "asking about an item that has not arrived or asking about when the item will arrive",
+      "reply": "I am sorry to hear that your order has not arrived yet. I can help you track it. Can you please provide me with your order number?"
+    },
+    {
+      "cat2": "someone wants to track his order",
+      "reply": "I can help you with that. Please provide me with your order number so I can check the status of your order."
+    }
+  ]
+}
