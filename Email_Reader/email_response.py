@@ -179,7 +179,7 @@ class EmailResponder:
         )
         '''
         model="deepseek-chat"
-        client = OpenAI(api_key = self.jasonFile["DeepSeek"], base_url="https://api.deepseek.com")
+        client = OpenAI(api_key = self.jasonFile["Chat2"], base_url="https://api.deepseek.com")
         messages = [
         {"role": "system", "content": "You are a helpful assistant"},
         {"role": "user", "content": GptInstruction}]
