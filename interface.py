@@ -105,6 +105,8 @@ if __name__ == "__main__":
         email_processor = EmailProcessor()
         app = create_interface(email_processor)
         app.launch(share=True)
+        input('') 
     except Exception as e:
         logging.error(f"Error launching application: {e}")
+        input('') 
         raise
