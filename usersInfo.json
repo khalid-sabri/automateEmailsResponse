@@ -1,18 +1,21 @@
 {
 	"moonlight698": {
+		"server": "IMAP",
 		"Imap": "imap.mail.yahoo.com",
 		"Smtp": "smtp.mail.yahoo.com",
 		"PortIn": 993,
-		"PortOut":587
-									},
+		"PortOut": 587
+	},
 
-	
-		"rachel": {
-			"Imap": "imap.europe.secureserver.net",
-			"Smtp": "smtpout.europe.secureserver.net",
-			"PortIn": 993,
-			"PortOut": 587
-							}
+
+	"rachel": {
+		"server": "OUTLOOK",
+		"TENANT_ID": "00ca3193-840a-4c57-9c49-8ac208d6c701",
+		"Imap": "outlook.office365.com",
+		"Smtp": "smtp.office365.com",
+		"PortIn": 993,
+		"PortOut": 587
+	}
 
 	
 }

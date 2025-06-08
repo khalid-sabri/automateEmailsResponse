@@ -216,21 +216,31 @@ class EmailProcessor(EmailResponder):
         try:
             client = self.get_name(email_user)  # Ensure client gets a value
             if client =="":
-                raise Exception("user can not be found!")
-            self.Imap = gr.State(self.jasonUsersFile[client]["Imap"]).value
-            self.Smtp = gr.State(self.jasonUsersFile[client]["Smtp"]).value 
-            self.port_in = gr.State(self.jasonUsersFile[client]["PortIn"]).value
-            self.port_out = gr.State(self.jasonUsersFile[client]["PortOut"]).value
+                raise Exception("user can not be found!")           
 
-            reader = EmailReader(self.Imap, self.Smtp, self.port_in, email_user, email_pass)
-            reader.connect()
-            reader.login()
-            reader.fetch_unseen_emails()
-            reader.save_emails_to_excel(Data_path)
-            return "Emails fetched and saved to 'emails.xlsx'"
+            self.server = self.jasonUsersFile[client]['server']
+            if self.server == 'OUTLOOK':
+                self.tenant_id = self.jasonUsersFile[client]['TENANT_ID']                
+                self.OutlookReader = EmailReader(tenantId=self.tenant_id)
+                self.OutlookReader.read_from_outlook()
+                self.OutlookReader.save_emails_to_excel(Data_path)
+            else:
+                self.Imap = gr.State(self.jasonUsersFile[client]["Imap"]).value
+                self.Smtp = gr.State(self.jasonUsersFile[client]["Smtp"]).value 
+                self.port_in = gr.State(self.jasonUsersFile[client]["PortIn"]).value
+                self.port_out = gr.State(self.jasonUsersFile[client]["PortOut"]).value
+
+                reader = EmailReader(imap_url=self.Imap, Smtp_url=self.Smtp, port_num=self.port_in, email_user=email_user, email_pass=email_pass)
+                reader.connect()
+                reader.login()
+                reader.fetch_unseen_emails()
+                reader.save_emails_to_excel(Data_path)
         except Exception as e:
             logging.error(f"Error fetching and saving emails: {e}")
             raise
+        #reader.save_emails_to_excel(Data_path)
+        return "Emails fetched and saved to 'emails.xlsx'"
+
 
     def load_emails(self):
         """Load emails from the Excel file.
@@ -265,15 +275,24 @@ class EmailProcessor(EmailResponder):
             if 0 <= index < len(df):
                 # Retrieve the message ID of the current email
                 msg_id = df.iloc[index]['Message ID']  # Replace 'Message ID' with the actual column name for message IDs in your DataFrame
-                reader = EmailReader(self.Imap, self.Smtp, self.port_in, email_user, email_pass)
-                reader.connect()
-                reader.login()
-                send_status = reader.reply_to_email(msg_id, reply_body, self.port_out)
-                reader.close_connection()
+                if self.server == 'OUTLOOK':
+                     #reader = EmailReader(tenantId=self.tenant_id)
+                     #reader.read_from_outlook()
+                     response_message = self.OutlookReader.reply_toOutlook_message(msg_id, reply_body)
 
-                response_message = send_status if send_status else "Reply sent successfully!"
+
+                else:
+                    reader = EmailReader(self.Imap, self.Smtp, self.port_in, email_user, email_pass)
+                    reader.connect()
+                    reader.login()
+                    send_status = reader.reply_to_email(msg_id, reply_body, self.port_out)
+                    reader.close_connection()
+
+                    #response_message = send_status if send_status else "Reply sent successfully!"
+                    response_message = send_status 
+                    From, Subject, Body, index = self.update_email_content(df, index)
+
                 From, Subject, Body, index = self.update_email_content(df, index)
-
                 # Clear reply body and sentiment fields
                 return response_message, From, Subject, Body, index, "", "", ""
 

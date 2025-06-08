@@ -8,13 +8,19 @@ import string
 from config import *
 import time
 
+from msal import PublicClientApplication
+from msal import ConfidentialClientApplication
+import httpx
+from bs4 import BeautifulSoup
+
+
 
 class EmailReader:
     """
     Class to read and process emails using IMAP.
     """
 
-    def __init__(self, imap_url, Smtp_url, port_num, email_user, email_pass):
+    def __init__(self, imap_url=0, Smtp_url=0, port_num=0, email_user=0, email_pass=0, tenantId=0):
         """
         Initialize the EmailReader object.
 
@@ -29,6 +35,8 @@ class EmailReader:
         self.email_user = email_user
         self.email_pass = email_pass
         self.mail = None
+        self.tenantId = tenantId
+        self.access_token = 0
         self.df = pd.DataFrame(columns=['Email ID', 'Message ID', 'From', 'Subject', 'Body'])
 
     def connect(self):
@@ -37,6 +45,9 @@ class EmailReader:
         """
         try:
             self.mail = imaplib.IMAP4_SSL(self.imap_url,port=self.port)
+            self.mail.debug = 4
+            #self.mail=imaplib.IMAP4(self.imap_url,port=self.port)
+            #self.mail.starttls()
         except imaplib.IMAP4.error as e:
             logging.error(f"Failed to connect to IMAP server: {e}")
             raise ConnectionError(f"Failed to connect to IMAP server: {e}")
@@ -245,3 +256,113 @@ class EmailReader:
         except Exception as e:
             logging.error(f"Error in sending email: {e}")
             raise Exception(f"Error in sending email: {e}")
+
+
+
+
+    def get_access_token2(self):
+        AUTHORITY = f"https://login.microsoftonline.com/{self.tenantId}"
+        SCO = ["https://graph.microsoft.com/.default"]
+
+        app = PublicClientApplication(client_id="74885322-da4b-4a93-8c88-cc15a0080a7c", authority=AUTHORITY)
+        result = app.acquire_token_interactive(scopes=SCO)
+        self.access_token = result["access_token"]
+ 
+        return self.access_token
+
+
+
+    def read_from_outlook(self):
+        MS_GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0'
+        scopes= ['User.Read', 'Mail.ReadWrite', 'Mail.Send']
+
+        endpoint = f'{MS_GRAPH_BASE_URL}/me/mailFolders/Inbox/messages'
+        access_token = self.get_access_token2()
+        headers = {
+        'Authorization': 'Bearer ' + access_token
+        }
+
+        try:
+            for i in range(0, 4, 2):
+                params = {
+                    '$top': 2,
+                    '$select': '*',
+                    '$skip': i,
+                    '$orderby': 'receivedDateTime desc'
+            }
+
+                response = httpx.get(endpoint, headers=headers, params=params)
+                if response.status_code != 200:
+                    raise Exception(f'Failed to retrieve emails: {response.text}')
+
+                json_response = response.json()           
+
+                for mail_message in json_response.get('value', []):        
+                    message_id = mail_message.get('id')
+                    subject    =  mail_message.get('subject')
+                    from_ =  mail_message.get('from')                   
+                    body = mail_message.get('bodyPreview')
+                    body = self.extractLatestMsg(body)
+                    self.df = self.df._append({'Email ID': 0, 'Message ID': message_id, 'From': from_, 'Subject': subject, 'Body': body}, ignore_index=True)
+
+        except httpx.HTTPStatusError as e:
+            print(f'HTTP Error: {e}')
+        except Exception as e:
+            print(f'Error: {e}')
+
+    def reply_toOutlook_message(self, messageId, reply_body):
+        """
+        read unique message ID from outlook emails.
+        """
+        try:
+            if self.access_token: 
+                headers = { "Authorization": f"Bearer {self.access_token}"  }
+                response = httpx.get(f"https://graph.microsoft.com/v1.0/me/mailFolders/Inbox/messages/{messageId}",  headers=headers)
+                if response.status_code == 200:
+                    message = response.json()
+
+                    from_field = message.get("from", {})
+                    email_address = from_field.get("emailAddress", {}).get("address")
+
+                    html_content = message.get("body", {}).get("content", "")
+                    soup = BeautifulSoup(html_content, "html.parser")
+                    body_content = reply_body + "\n" + soup.get_text()
+                    
+                    email_payload = {
+                        "message": {
+                            "subject":message['subject'],
+                            "body": {
+                                "contentType": "Text",
+                                "content": f'{ body_content }'
+                            },
+                            "toRecipients": [
+                                {
+                                    "emailAddress": {
+                                        "address": email_address
+                                    }
+                                }
+                            ]
+                        },
+                        "saveToSentItems": "true"
+                     }
+
+                    response = httpx.post(
+                        "https://graph.microsoft.com/v1.0/me/sendMail",
+                        headers=headers,
+                        json=email_payload
+                     )
+                    if response == 202:
+                        return "Email sent successfully."
+                    else:
+                        return "Failed to send email"
+
+            else:
+                raise  Exception(f'No access token found')
+
+
+        except httpx.HTTPStatusError as e:
+            print(f'HTTP Error: {e}')
+        except Exception as e:
+            print(f'Error: {e}')
+       
+
